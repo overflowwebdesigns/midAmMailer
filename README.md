@@ -74,3 +74,4 @@ Note: Local testing requires Chrome/Chromium installed on your system.
 - The app assumes a specific table structure on the USGA page. If the page layout changes, the XPath selectors may need adjustment.
 - SMS delivery depends on Verizon's email-to-SMS gateway.
 - The app runs continuously and checks for updates every hour.
+- test
