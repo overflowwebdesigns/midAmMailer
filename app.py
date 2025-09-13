@@ -7,8 +7,7 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from webdriver_manager.chrome import ChromeDriverManager
-from webdriver_manager.core.utils import ChromeType
+
 import smtplib
 from email.mime.text import MIMEText
 from apscheduler.schedulers.blocking import BlockingScheduler
@@ -47,7 +46,7 @@ def get_score():
     options.binary_location = '/usr/bin/chromium'
     try:
         print("Initializing Chrome driver...")
-        service = Service(ChromeDriverManager(chrome_type=ChromeType.CHROMIUM).install())
+        service = Service(executable_path='/usr/lib/bin/chromedriver')
         driver = webdriver.Chrome(service=service, options=options)
         print(f"Loading URL: {URL}")
         driver.get(URL)
