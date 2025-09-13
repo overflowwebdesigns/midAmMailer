@@ -11,11 +11,15 @@ import smtplib
 from email.mime.text import MIMEText
 from apscheduler.schedulers.blocking import BlockingScheduler
 
+print("Mid-Am Score Monitor starting...")
+
 EMAIL = os.getenv('GMAIL_EMAIL')
 PASSWORD = os.getenv('GMAIL_APP_PASSWORD')
 PHONE = os.getenv('VERIZON_PHONE')
 URL = 'https://championships.usga.org/usmidamateur/2025/scoring.html'
 LAST_SCORE_FILE = 'last_score.json'
+
+print(f"Environment variables loaded - EMAIL: {EMAIL}, PHONE: {PHONE}, PASSWORD set: {bool(PASSWORD)}")
 
 def send_email(subject, body):
     msg = MIMEText(body)
@@ -31,6 +35,7 @@ def send_email(subject, body):
         print(f"Failed to send email: {e}")
 
 def get_score():
+    print("Starting score scraping...")
     options = Options()
     options.add_argument('--headless')
     options.add_argument('--no-sandbox')
@@ -39,21 +44,27 @@ def get_score():
     options.add_argument('--window-size=1920,1080')
     options.binary_location = '/usr/bin/chromium'
     try:
+        print("Initializing Chrome driver...")
         service = Service(executable_path='/usr/lib/bin/chromedriver')
         driver = webdriver.Chrome(service=service, options=options)
+        print(f"Loading URL: {URL}")
         driver.get(URL)
+        print("Waiting for Ronald Kelton to appear on page...")
         # Wait for the page to load and find Ronald Kelton
         WebDriverWait(driver, 20).until(
             EC.presence_of_element_located((By.XPATH, "//*[contains(text(), 'Ronald Kelton')]"))
         )
+        print("Found Ronald Kelton on page, extracting data...")
         # Find the table row containing Ronald Kelton
         row = driver.find_element(By.XPATH, "//tr[td[contains(text(), 'Ronald Kelton')]]")
         tds = row.find_elements(By.TAG_NAME, 'td')
+        print(f"Found {len(tds)} columns in row")
         # Assuming columns: position, name, score, thru (holes)
         # Adjust indices based on actual table structure
         score = tds[2].text.strip() if len(tds) > 2 else 'N/A'
         holes = tds[3].text.strip() if len(tds) > 3 else 'N/A'
         driver.quit()
+        print(f"Successfully scraped score: {score}, holes: {holes}")
         return {'score': score, 'holes': holes}
     except Exception as e:
         print(f"Error scraping score: {e}")
@@ -62,6 +73,7 @@ def get_score():
         return None
 
 def check_and_notify():
+    print("Starting score check and notify...")
     current = get_score()
     if not current:
         print("Could not retrieve current score")
@@ -70,15 +82,19 @@ def check_and_notify():
     try:
         with open(LAST_SCORE_FILE, 'r') as f:
             last = json.load(f)
+        print(f"Loaded last score: {last}")
     except FileNotFoundError:
         last = {}
+        print("No previous score file found, starting fresh")
 
+    print(f"Current score: {current}, Last score: {last}")
     if current != last:
         body = f"Ronald Kelton's current score: {current['score']}\nHoles completed: {current['holes']}"
+        print("Score changed, sending email...")
         send_email("Mid-Am Score Update", body)
         with open(LAST_SCORE_FILE, 'w') as f:
             json.dump(current, f)
-        print(f"Score updated: {current}")
+        print(f"Score updated and saved: {current}")
     else:
         print("No score change detected")
 
