@@ -46,7 +46,7 @@ def get_score():
     options.binary_location = '/usr/bin/chromium'
     try:
         print("Initializing Chrome driver...")
-        service = Service(executable_path='/usr/lib/bin/chromedriver')
+        service = Service(executable_path='/usr/bin/chromedriver')
         driver = webdriver.Chrome(service=service, options=options)
         print(f"Loading URL: {URL}")
         driver.get(URL)
