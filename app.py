@@ -11,21 +11,14 @@ print("Mid-Am Score Monitor starting...")
 EMAIL = os.getenv('GMAIL_EMAIL')
 PASSWORD = os.getenv('GMAIL_APP_PASSWORD')
 VERIZON_PHONES = os.getenv('VERIZON_PHONE', '')
-ATT_PHONES = os.getenv('ATT_PHONE', '')
 API_URL = 'https://ace-api.usga.org/scoring/v1/scoring.json?championship=usmidam&championship-year=2025'
 LAST_SCORE_FILE = 'last_score.json'
 
 # Parse phone numbers
 verizon_numbers = [num.strip() for num in VERIZON_PHONES.split(',') if num.strip()]
-att_numbers = [num.strip() for num in ATT_PHONES.split(',') if num.strip()]
-all_recipients = []
+all_recipients = [f'{num}@vtext.com' for num in verizon_numbers]
 
-for num in verizon_numbers:
-    all_recipients.append(f'{num}@vtext.com')
-for num in att_numbers:
-    all_recipients.append(f'{num}@mms.att.net')
-
-print(f"Environment variables loaded - EMAIL: {EMAIL}, VERIZON: {verizon_numbers}, ATT: {att_numbers}, PASSWORD set: {bool(PASSWORD)}")
+print(f"Environment variables loaded - EMAIL: {EMAIL}, VERIZON: {verizon_numbers}, PASSWORD set: {bool(PASSWORD)}")
 print(f"Total recipients: {len(all_recipients)}")
 
 def send_email(subject, body):
@@ -105,7 +98,7 @@ if __name__ == "__main__":
         print("Missing required environment variables. Please set GMAIL_EMAIL and GMAIL_APP_PASSWORD")
         exit(1)
     if not all_recipients:
-        print("No phone numbers configured. Please set VERIZON_PHONE and/or ATT_PHONE")
+        print("No phone numbers configured. Please set VERIZON_PHONE")
         exit(1)
 
     scheduler = BlockingScheduler()
