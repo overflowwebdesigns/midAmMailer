@@ -86,7 +86,7 @@ if __name__ == "__main__":
         exit(1)
 
     scheduler = BlockingScheduler()
-    scheduler.add_job(check_and_notify, 'interval', hours=1)
+    scheduler.add_job(check_and_notify, 'interval', minutes=10)
     print("Starting Mid-Am Score Monitor...")
     # Run once at start
     check_and_notify()

@@ -6,7 +6,7 @@ A Python application that monitors Ronald Kelton's score in the 2025 U.S. Mid-Am
 
 - Scrapes the USGA scoring page for Ronald Kelton's current score and holes completed
 - Sends SMS notifications to Verizon phone numbers when score changes
-- Runs continuously with hourly checks
+- Runs continuously with 10-minute checks
 - Containerized for easy deployment on CapRover
 
 ## Prerequisites
@@ -38,7 +38,7 @@ Set the following environment variables in your CapRover app:
 2. Create a new app in CapRover
 3. Set the environment variables in the app settings
 4. Deploy the app using the provided Dockerfile
-5. The app will start monitoring immediately and check for updates every hour
+5. The app will start monitoring immediately and check for updates every 10 minutes
 
 ## Local Testing
 
@@ -55,9 +55,9 @@ Note: Local testing requires Chrome/Chromium installed on your system.
 
 ## How It Works
 
-1. The app uses Selenium to load the USGA scoring page in headless Chrome
-2. Waits for the leaderboard to load and locates Ronald Kelton's row
-3. Extracts the current score and holes completed
+1. The app fetches live scoring data from the USGA's official API
+2. Parses the JSON response to find Ronald Kelton's current standings
+3. Extracts the score (to par) and holes completed
 4. Compares to the previously stored score
 5. If changed, sends an email to `phonenumber@vtext.com` (Verizon's SMS gateway)
 6. Updates the stored score for future comparisons
@@ -73,5 +73,5 @@ Note: Local testing requires Chrome/Chromium installed on your system.
 
 - The app assumes a specific table structure on the USGA page. If the page layout changes, the XPath selectors may need adjustment.
 - SMS delivery depends on Verizon's email-to-SMS gateway.
-- The app runs continuously and checks for updates every hour.
+- The app runs continuously and checks for updates every 10 minutes.
 - test
