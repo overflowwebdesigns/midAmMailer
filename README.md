@@ -31,6 +31,10 @@ Set the following environment variables in your CapRover app:
 - `GMAIL_EMAIL`: Your Gmail address (e.g., yourname@gmail.com)
 - `GMAIL_APP_PASSWORD`: The 16-character app password
 - `VERIZON_PHONE`: Verizon phone number(s) (e.g., 1234567890 or 1234567890,0987654321 for multiple)
+- `ATT_PHONE`: AT&T phone number(s) (e.g., 1234567890 or 1234567890,0987654321 for multiple)
+- `AWS_ACCESS_KEY_ID`: Your AWS access key ID
+- `AWS_SECRET_ACCESS_KEY`: Your AWS secret access key
+- `AWS_REGION`: AWS region (default: us-east-1)
 
 ## Deployment to CapRover
 
@@ -48,6 +52,10 @@ To test locally:
 export GMAIL_EMAIL="yourgmail@gmail.com"
 export GMAIL_APP_PASSWORD="yourapppassword"
 export VERIZON_PHONE="1234567890"
+export ATT_PHONE="0987654321"
+export AWS_ACCESS_KEY_ID="your-access-key"
+export AWS_SECRET_ACCESS_KEY="your-secret-key"
+export AWS_REGION="us-east-1"
 python app.py
 ```
 
