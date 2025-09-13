@@ -33,14 +33,14 @@ def send_email(subject, body):
         print("No phone numbers configured")
         return
 
-    msg = MIMEText(body)
-    msg['Subject'] = subject
-    msg['From'] = EMAIL
-
     try:
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
             server.login(EMAIL, PASSWORD)
             for recipient in all_recipients:
+                # Create a fresh message for each recipient
+                msg = MIMEText(body)
+                msg['Subject'] = subject
+                msg['From'] = EMAIL
                 msg['To'] = recipient
                 server.sendmail(EMAIL, recipient, msg.as_string())
                 print(f"Email sent to {recipient}")
