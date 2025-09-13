@@ -4,7 +4,7 @@ A Python application that monitors Ronald Kelton's score in the 2025 U.S. Mid-Am
 
 ## Features
 
-- Scrapes the USGA scoring page for Ronald Kelton's current score and holes completed
+- Monitors the USGA scoring API for Ronald Kelton's current score and holes completed
 - Sends SMS notifications to Verizon phone numbers when score changes
 - Runs continuously with 10-minute checks
 - Containerized for easy deployment on CapRover
@@ -31,10 +31,6 @@ Set the following environment variables in your CapRover app:
 - `GMAIL_EMAIL`: Your Gmail address (e.g., yourname@gmail.com)
 - `GMAIL_APP_PASSWORD`: The 16-character app password
 - `VERIZON_PHONE`: Verizon phone number(s) (e.g., 1234567890 or 1234567890,0987654321 for multiple)
-- `ATT_PHONE`: AT&T phone number(s) (e.g., 1234567890 or 1234567890,0987654321 for multiple)
-- `AWS_ACCESS_KEY_ID`: Your AWS access key ID
-- `AWS_SECRET_ACCESS_KEY`: Your AWS secret access key
-- `AWS_REGION`: AWS region (default: us-east-1)
 
 ## Deployment to CapRover
 
@@ -52,14 +48,8 @@ To test locally:
 export GMAIL_EMAIL="yourgmail@gmail.com"
 export GMAIL_APP_PASSWORD="yourapppassword"
 export VERIZON_PHONE="1234567890"
-export ATT_PHONE="0987654321"
-export AWS_ACCESS_KEY_ID="your-access-key"
-export AWS_SECRET_ACCESS_KEY="your-secret-key"
-export AWS_REGION="us-east-1"
 python app.py
 ```
-
-Note: Local testing requires Chrome/Chromium installed on your system.
 
 ## How It Works
 
@@ -79,7 +69,5 @@ Note: Local testing requires Chrome/Chromium installed on your system.
 
 ## Notes
 
-- The app assumes a specific table structure on the USGA page. If the page layout changes, the XPath selectors may need adjustment.
-- SMS delivery depends on Verizon's email-to-SMS gateway.
-- The app runs continuously and checks for updates every 10 minutes.
-- test
+- SMS delivery depends on Verizon's email-to-SMS gateway
+- The app runs continuously and checks for updates every 10 minutes

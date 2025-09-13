@@ -5,7 +5,6 @@ import requests
 import smtplib
 from email.mime.text import MIMEText
 from apscheduler.schedulers.blocking import BlockingScheduler
-import boto3
 import logging
 
 # Configure logging
@@ -22,79 +21,33 @@ logger.info("Mid-Am Score Monitor starting...")
 EMAIL = os.getenv('GMAIL_EMAIL')
 PASSWORD = os.getenv('GMAIL_APP_PASSWORD')
 VERIZON_PHONES = os.getenv('VERIZON_PHONE', '')
-ATT_PHONES = os.getenv('ATT_PHONE', '')
-AWS_ACCESS_KEY = os.getenv('AWS_ACCESS_KEY_ID')
-AWS_SECRET_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
-AWS_REGION = os.getenv('AWS_REGION', 'us-east-1')
 API_URL = 'https://ace-api.usga.org/scoring/v1/scoring.json?championship=usmidam&championship-year=2025'
 LAST_SCORE_FILE = 'last_score.json'
 
 # Parse phone numbers
 verizon_numbers = [num.strip() for num in VERIZON_PHONES.split(',') if num.strip()]
-att_numbers = [num.strip() for num in ATT_PHONES.split(',') if num.strip()]
 
-logger.info(f"Environment variables loaded - EMAIL: {EMAIL}, VERIZON: {verizon_numbers}, ATT: {att_numbers}, PASSWORD set: {bool(PASSWORD)}")
-logger.info(f"AWS configured: {bool(AWS_ACCESS_KEY and AWS_SECRET_KEY)}")
-
-# Initialize AWS SNS client if credentials available
-sns_client = None
-if AWS_ACCESS_KEY and AWS_SECRET_KEY:
-    try:
-        sns_client = boto3.client(
-            'sns',
-            aws_access_key_id=AWS_ACCESS_KEY,
-            aws_secret_access_key=AWS_SECRET_KEY,
-            region_name=AWS_REGION
-        )
-        logger.info("AWS SNS client initialized")
-    except Exception as e:
-        logger.error(f"Failed to initialize AWS SNS: {e}")
-
-# Prepare recipients
-verizon_recipients = [f'{num}@vtext.com' for num in verizon_numbers]
-att_recipients = att_numbers  # SNS uses plain phone numbers
+logger.info(f"Environment variables loaded - EMAIL: {EMAIL}, VERIZON: {verizon_numbers}, PASSWORD set: {bool(PASSWORD)}")
 
 def send_notifications(subject, body):
-    # Send to Verizon numbers via email
-    if verizon_recipients:
-        try:
-            with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-                server.login(EMAIL, PASSWORD)
-                for recipient in verizon_recipients:
-                    # Create a fresh message for each recipient
-                    msg = MIMEText(body)
-                    msg['Subject'] = subject
-                    msg['From'] = EMAIL
-                    msg['To'] = recipient
-                    server.sendmail(EMAIL, recipient, msg.as_string())
-                    logger.info(f"Email sent to Verizon {recipient}")
-            logger.info(f"Emails sent successfully to {len(verizon_recipients)} Verizon recipients")
-        except Exception as e:
-            logger.error(f"Failed to send Verizon emails: {e}")
+    if not verizon_numbers:
+        logger.warning("No Verizon phone numbers configured")
+        return
 
-    # Send to AT&T numbers via AWS SNS
-    if att_recipients and sns_client:
-        for phone in att_recipients:
-            try:
-                # Ensure phone number starts with +1
-                if not phone.startswith('+'):
-                    phone = f'+1{phone}'
-                sns_client.publish(
-                    PhoneNumber=phone,
-                    Message=body,
-                    MessageAttributes={
-                        'AWS.SNS.SMS.SMSType': {
-                            'DataType': 'String',
-                            'StringValue': 'Transactional'
-                        }
-                    }
-                )
-                logger.info(f"SMS sent to AT&T {phone}")
-            except Exception as e:
-                logger.error(f"Failed to send SMS to {phone}: {e}")
-        logger.info(f"SMS sent successfully to {len(att_recipients)} AT&T recipients")
-    elif att_recipients and not sns_client:
-        logger.warning("AT&T numbers configured but AWS SNS not available")
+    try:
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+            server.login(EMAIL, PASSWORD)
+            for phone in verizon_numbers:
+                # Create a fresh message for each recipient
+                msg = MIMEText(body)
+                msg['Subject'] = subject
+                msg['From'] = EMAIL
+                msg['To'] = f'{phone}@vtext.com'
+                server.sendmail(EMAIL, f'{phone}@vtext.com', msg.as_string())
+                logger.info(f"Email sent to Verizon {phone}@vtext.com")
+        logger.info(f"Emails sent successfully to {len(verizon_numbers)} Verizon recipients")
+    except Exception as e:
+        logger.error(f"Failed to send Verizon emails: {e}")
 
 def get_score():
     logger.info("Starting score fetching from API...")
@@ -152,8 +105,8 @@ if __name__ == "__main__":
     if not EMAIL or not PASSWORD:
         logger.error("Missing required environment variables. Please set GMAIL_EMAIL and GMAIL_APP_PASSWORD")
         exit(1)
-    if not verizon_recipients and not att_recipients:
-        logger.error("No phone numbers configured. Please set VERIZON_PHONE and/or ATT_PHONE")
+    if not verizon_numbers:
+        logger.error("No phone numbers configured. Please set VERIZON_PHONE")
         exit(1)
 
     scheduler = BlockingScheduler()
