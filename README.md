@@ -30,7 +30,8 @@ Set the following environment variables in your CapRover app:
 
 - `GMAIL_EMAIL`: Your Gmail address (e.g., yourname@gmail.com)
 - `GMAIL_APP_PASSWORD`: The 16-character app password
-- `VERIZON_PHONE`: 10-digit Verizon phone number (e.g., 1234567890)
+- `VERIZON_PHONE`: Verizon phone number(s) (e.g., 1234567890 or 1234567890,0987654321 for multiple)
+- `ATT_PHONE`: AT&T phone number(s) (e.g., 1234567890 or 1234567890,0987654321 for multiple)
 
 ## Deployment to CapRover
 
@@ -48,6 +49,7 @@ To test locally:
 export GMAIL_EMAIL="yourgmail@gmail.com"
 export GMAIL_APP_PASSWORD="yourapppassword"
 export VERIZON_PHONE="1234567890"
+export ATT_PHONE="0987654321"
 python app.py
 ```
 

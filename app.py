@@ -10,22 +10,41 @@ print("Mid-Am Score Monitor starting...")
 
 EMAIL = os.getenv('GMAIL_EMAIL')
 PASSWORD = os.getenv('GMAIL_APP_PASSWORD')
-PHONE = os.getenv('VERIZON_PHONE')
+VERIZON_PHONES = os.getenv('VERIZON_PHONE', '')
+ATT_PHONES = os.getenv('ATT_PHONE', '')
 API_URL = 'https://ace-api.usga.org/scoring/v1/scoring.json?championship=usmidam&championship-year=2025'
 LAST_SCORE_FILE = 'last_score.json'
 
-print(f"Environment variables loaded - EMAIL: {EMAIL}, PHONE: {PHONE}, PASSWORD set: {bool(PASSWORD)}")
+# Parse phone numbers
+verizon_numbers = [num.strip() for num in VERIZON_PHONES.split(',') if num.strip()]
+att_numbers = [num.strip() for num in ATT_PHONES.split(',') if num.strip()]
+all_recipients = []
+
+for num in verizon_numbers:
+    all_recipients.append(f'{num}@vtext.com')
+for num in att_numbers:
+    all_recipients.append(f'{num}@txt.att.net')
+
+print(f"Environment variables loaded - EMAIL: {EMAIL}, VERIZON: {verizon_numbers}, ATT: {att_numbers}, PASSWORD set: {bool(PASSWORD)}")
+print(f"Total recipients: {len(all_recipients)}")
 
 def send_email(subject, body):
+    if not all_recipients:
+        print("No phone numbers configured")
+        return
+
     msg = MIMEText(body)
     msg['Subject'] = subject
     msg['From'] = EMAIL
-    msg['To'] = f'{PHONE}@vtext.com'
+
     try:
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
             server.login(EMAIL, PASSWORD)
-            server.sendmail(EMAIL, f'{PHONE}@vtext.com', msg.as_string())
-        print("Email sent successfully")
+            for recipient in all_recipients:
+                msg['To'] = recipient
+                server.sendmail(EMAIL, recipient, msg.as_string())
+                print(f"Email sent to {recipient}")
+        print(f"Emails sent successfully to {len(all_recipients)} recipients")
     except Exception as e:
         print(f"Failed to send email: {e}")
 
@@ -82,8 +101,11 @@ def check_and_notify():
 
 if __name__ == "__main__":
     # Check environment variables
-    if not all([EMAIL, PASSWORD, PHONE]):
-        print("Missing environment variables. Please set GMAIL_EMAIL, GMAIL_APP_PASSWORD, and VERIZON_PHONE")
+    if not EMAIL or not PASSWORD:
+        print("Missing required environment variables. Please set GMAIL_EMAIL and GMAIL_APP_PASSWORD")
+        exit(1)
+    if not all_recipients:
+        print("No phone numbers configured. Please set VERIZON_PHONE and/or ATT_PHONE")
         exit(1)
 
     scheduler = BlockingScheduler()
