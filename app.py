@@ -43,10 +43,11 @@ def get_score():
             player = player_data.get('player', {})
             if player.get('firstName') == 'Ronald' and player.get('lastName') == 'Kelton':
                 print("Found Ronald Kelton in standings, extracting data...")
+                position = player_data.get('position', {}).get('displayValue', 'N/A')
                 to_par = player_data.get('toPar', {}).get('displayValue', 'N/A')
                 holes_through = player_data.get('holesThrough', {}).get('displayValue', 'N/A')
-                print(f"Successfully fetched score: {to_par}, holes: {holes_through}")
-                return {'score': to_par, 'holes': holes_through}
+                print(f"Successfully fetched position: {position}, score: {to_par}, holes: {holes_through}")
+                return {'position': position, 'score': to_par, 'holes': holes_through}
         print("Ronald Kelton not found in standings")
         return None
     except Exception as e:
@@ -70,7 +71,7 @@ def check_and_notify():
 
     print(f"Current score: {current}, Last score: {last}")
     if current != last:
-        body = f"Ronald Kelton's current score: {current['score']}\nHoles completed: {current['holes']}"
+        body = f"Ronald Kelton's current position: {current['position']}\nScore: {current['score']}\nHoles completed: {current['holes']}"
         print("Score changed, sending email...")
         send_email("Mid-Am Score Update", body)
         with open(LAST_SCORE_FILE, 'w') as f:
