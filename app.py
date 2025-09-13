@@ -23,7 +23,7 @@ all_recipients = []
 for num in verizon_numbers:
     all_recipients.append(f'{num}@vtext.com')
 for num in att_numbers:
-    all_recipients.append(f'{num}@txt.att.net')
+    all_recipients.append(f'{num}@mms.att.net')
 
 print(f"Environment variables loaded - EMAIL: {EMAIL}, VERIZON: {verizon_numbers}, ATT: {att_numbers}, PASSWORD set: {bool(PASSWORD)}")
 print(f"Total recipients: {len(all_recipients)}")
