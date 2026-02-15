@@ -1,117 +1,172 @@
-import os
 import json
-import time
-import requests
+import logging
+import os
 import smtplib
 from email.mime.text import MIMEText
-from apscheduler.schedulers.blocking import BlockingScheduler
-import logging
 
-# Configure logging
+import requests
+from apscheduler.schedulers.blocking import BlockingScheduler
+
+
+API_URL = (
+    "https://tv-admin.varsity.com/api/experiences/web/event-hub/14478875/results"
+    "?version=1.33.2&tz=America/New_York&search=maine%20stars"
+    "&isEventHubLayoutEnabled=true&isEventHubBracketsEnabled=false"
+    "&isNextGenEventHub=false&site_id=20"
+)
+TEAM_FILTER = "maine stars"
+LAST_SCORE_FILE = "last_score.json"
+
+EMAIL = os.getenv("GMAIL_EMAIL")
+PASSWORD = os.getenv("GMAIL_APP_PASSWORD")
+ALERT_EMAIL_TO = os.getenv("ALERT_EMAIL_TO", "")
+ALERT_RECIPIENTS = [email.strip() for email in ALERT_EMAIL_TO.split(",") if email.strip()]
+
+
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[logging.StreamHandler()]
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler()],
 )
-
 logger = logging.getLogger(__name__)
 
-logger.info("Mid-Am Score Monitor starting...")
 
-EMAIL = os.getenv('GMAIL_EMAIL')
-PASSWORD = os.getenv('GMAIL_APP_PASSWORD')
-VERIZON_PHONES = os.getenv('VERIZON_PHONE', '')
-API_URL = 'https://ace-api.usga.org/scoring/v1/scoring.json?championship=usmidam&championship-year=2025'
-LAST_SCORE_FILE = 'last_score.json'
+def extract_team_scores(node):
+    """Recursively search the payload for rows that contain both
+    `program-team` and `performance-score` cells.
+    """
+    matches = []
 
-# Parse phone numbers
-verizon_numbers = [num.strip() for num in VERIZON_PHONES.split(',') if num.strip()]
+    if isinstance(node, list):
+        row = {}
+        is_row_like = False
 
-logger.info(f"Environment variables loaded - EMAIL: {EMAIL}, VERIZON: {verizon_numbers}, PASSWORD set: {bool(PASSWORD)}")
+        for item in node:
+            if isinstance(item, dict) and "key" in item and "data" in item:
+                is_row_like = True
+                key = item.get("key")
+                data = item.get("data", {})
 
-def send_notifications(subject, body):
-    if not verizon_numbers:
-        logger.warning("No Verizon phone numbers configured")
-        return
+                if key == "program-team":
+                    name = data.get("text") or ""
+                    sub_name = data.get("subText") or ""
+                    full_name = f"{name} {sub_name}".strip()
+                    row[key] = full_name
+                else:
+                    row[key] = data.get("text")
 
+        if is_row_like and ("program-team" in row and "performance-score" in row):
+            matches.append(
+                {
+                    "team_name": row.get("program-team"),
+                    "performance_score": row.get("performance-score"),
+                }
+            )
+
+        for item in node:
+            matches.extend(extract_team_scores(item))
+
+    elif isinstance(node, dict):
+        for value in node.values():
+            matches.extend(extract_team_scores(value))
+
+    return matches
+
+
+def get_maine_stars_scores():
+    logger.info("Fetching Varsity Event Hub results...")
+    response = requests.get(API_URL, timeout=30)
+    response.raise_for_status()
+    payload = response.json()
+
+    extracted = extract_team_scores(payload)
+    filtered = [
+        team
+        for team in extracted
+        if isinstance(team.get("team_name"), str)
+        and TEAM_FILTER in team["team_name"].lower()
+    ]
+
+    # Remove duplicates while preserving order.
+    seen = set()
+    unique = []
+    for team in filtered:
+        team_tuple = (team.get("team_name"), team.get("performance_score"))
+        if team_tuple not in seen:
+            seen.add(team_tuple)
+            unique.append(team)
+
+    return sorted(unique, key=lambda t: (t.get("team_name") or "", t.get("performance_score") or ""))
+
+
+def format_team_scores(teams):
+    return "\n".join(f"{team['team_name']} - {team['performance_score']}" for team in teams)
+
+
+def send_email_alert(subject, body):
+    if not EMAIL or not PASSWORD:
+        raise ValueError("Missing GMAIL_EMAIL or GMAIL_APP_PASSWORD environment variables.")
+    if not ALERT_RECIPIENTS:
+        raise ValueError("Missing ALERT_EMAIL_TO environment variable.")
+
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+        server.login(EMAIL, PASSWORD)
+        for recipient in ALERT_RECIPIENTS:
+            msg = MIMEText(body)
+            msg["Subject"] = subject
+            msg["From"] = EMAIL
+            msg["To"] = recipient
+            server.sendmail(EMAIL, recipient, msg.as_string())
+
+
+def load_last_scores():
     try:
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-            server.login(EMAIL, PASSWORD)
-            for phone in verizon_numbers:
-                # Create a fresh message for each recipient
-                msg = MIMEText(body)
-                msg['Subject'] = subject
-                msg['From'] = EMAIL
-                msg['To'] = f'{phone}@vtext.com'
-                server.sendmail(EMAIL, f'{phone}@vtext.com', msg.as_string())
-                logger.info(f"Email sent to Verizon {phone}@vtext.com")
-        logger.info(f"Emails sent successfully to {len(verizon_numbers)} Verizon recipients")
-    except Exception as e:
-        logger.error(f"Failed to send Verizon emails: {e}")
-
-def get_score():
-    logger.info("Starting score fetching from API...")
-    try:
-        logger.debug(f"Fetching API: {API_URL}")
-        response = requests.get(API_URL, timeout=30)
-        response.raise_for_status()
-        logger.info("API response received, parsing JSON...")
-        data = response.json()
-        standings = data.get('strokeplay', {}).get('standings', [])
-        logger.info(f"Found {len(standings)} players in standings")
-        for player_data in standings:
-            player = player_data.get('player', {})
-            if player.get('firstName') == 'Ronald' and player.get('lastName') == 'Kelton':
-                logger.info("Found Ronald Kelton in standings, extracting data...")
-                position = player_data.get('position', {}).get('displayValue', 'N/A')
-                to_par = player_data.get('toPar', {}).get('displayValue', 'N/A')
-                holes_through = player_data.get('holesThrough', {}).get('displayValue', 'N/A')
-                logger.info(f"Successfully fetched position: {position}, score: {to_par}, holes: {holes_through}")
-                return {'position': position, 'score': to_par, 'holes': holes_through}
-        logger.warning("Ronald Kelton not found in standings")
-        return None
-    except Exception as e:
-        logger.error(f"Error fetching score: {e}")
-        return None
-
-def check_and_notify():
-    logger.info("Starting score check and notify...")
-    current = get_score()
-    if not current:
-        logger.error("Could not retrieve current score")
-        return
-
-    try:
-        with open(LAST_SCORE_FILE, 'r') as f:
-            last = json.load(f)
-        logger.info(f"Loaded last score: {last}")
+        with open(LAST_SCORE_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            if isinstance(data, list):
+                return data
+            return []
     except FileNotFoundError:
-        last = {}
-        logger.info("No previous score file found, starting fresh")
+        return []
 
-    logger.info(f"Current score: {current}, Last score: {last}")
-    if current != last:
-        body = f"Ronald Kelton's current position: {current['position']}\nScore: {current['score']}\nHoles completed: {current['holes']}"
-        logger.info("Score changed, sending notifications...")
-        send_notifications("Mid-Am Score Update", body)
-        with open(LAST_SCORE_FILE, 'w') as f:
-            json.dump(current, f)
-        logger.info(f"Score updated and saved: {current}")
+
+def save_scores(scores):
+    with open(LAST_SCORE_FILE, "w", encoding="utf-8") as f:
+        json.dump(scores, f, indent=2)
+
+
+def check_for_changes_and_notify():
+    logger.info("Running score check...")
+    current_scores = get_maine_stars_scores()
+    previous_scores = load_last_scores()
+
+    if not previous_scores:
+        logger.info("No baseline file found. Saving current scores without sending an alert.")
+        save_scores(current_scores)
+        return
+
+    if current_scores != previous_scores:
+        body = "Maine Stars scores changed:\n\n" + format_team_scores(current_scores)
+        send_email_alert("Maine Stars Score Update", body)
+        save_scores(current_scores)
+        logger.info("Change detected. Email alert sent and new scores saved.")
     else:
-        logger.info("No score change detected")
+        logger.info("No changes detected.")
+
 
 if __name__ == "__main__":
-    # Check environment variables
-    if not EMAIL or not PASSWORD:
-        logger.error("Missing required environment variables. Please set GMAIL_EMAIL and GMAIL_APP_PASSWORD")
-        exit(1)
-    if not verizon_numbers:
-        logger.error("No phone numbers configured. Please set VERIZON_PHONE")
-        exit(1)
+    try:
+        if not EMAIL or not PASSWORD:
+            raise ValueError("Please set GMAIL_EMAIL and GMAIL_APP_PASSWORD.")
+        if not ALERT_RECIPIENTS:
+            raise ValueError("Please set ALERT_EMAIL_TO.")
 
-    scheduler = BlockingScheduler()
-    scheduler.add_job(check_and_notify, 'interval', minutes=10)
-    logger.info("Starting Mid-Am Score Monitor...")
-    # Run once at start
-    check_and_notify()
-    scheduler.start()
+        scheduler = BlockingScheduler()
+        scheduler.add_job(check_for_changes_and_notify, "interval", minutes=1)
+
+        logger.info("Starting Maine Stars monitor (checks every 1 minute)...")
+        check_for_changes_and_notify()
+        scheduler.start()
+    except Exception as exc:
+        logger.error(f"Application failed: {exc}")
+        raise

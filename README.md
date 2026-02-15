@@ -1,73 +1,35 @@
-# Mid-Am Score Monitor
+# Maine Stars Score Monitor
 
-A Python application that monitors Ronald Kelton's score in the 2025 U.S. Mid-Amateur Championship and sends text message updates via Verizon.
+A Python app that polls Varsity Event Hub results, tracks Maine Stars team performance scores, and emails updates when scores change.
 
 ## Features
 
-- Monitors the USGA scoring API for Ronald Kelton's current score and holes completed
-- Sends SMS notifications to Verizon phone numbers when score changes
-- Runs continuously with 10-minute checks
-- Containerized for easy deployment on CapRover
+- Queries Varsity Event Hub results API
+- Extracts full team name (`program-team` text + `subText`) and `performance-score`
+- Filters only Maine Stars teams
+- Checks every 1 minute
+- Sends email only when values change
+- Persists last snapshot in `last_score.json`
 
-## Prerequisites
+## Environment Variables
 
-- CapRover instance
-- Gmail account with 2FA enabled
-- Verizon phone number for SMS delivery
+Set these before running:
 
-## Setup
+- `GMAIL_EMAIL` - sending Gmail address
+- `GMAIL_APP_PASSWORD` - Gmail app password (requires 2FA)
+- `ALERT_EMAIL_TO` - recipient email (comma-separated for multiple recipients)
 
-### 1. Gmail App Password
-
-1. Go to your Google Account settings
-2. Navigate to Security → 2-Step Verification → App passwords
-3. Generate a new app password for "Mail"
-4. Note the 16-character password
-
-### 2. Environment Variables
-
-Set the following environment variables in your CapRover app:
-
-- `GMAIL_EMAIL`: Your Gmail address (e.g., yourname@gmail.com)
-- `GMAIL_APP_PASSWORD`: The 16-character app password
-- `VERIZON_PHONE`: Verizon phone number(s) (e.g., 1234567890 or 1234567890,0987654321 for multiple)
-
-## Deployment to CapRover
-
-1. Clone or upload this repository to your CapRover instance
-2. Create a new app in CapRover
-3. Set the environment variables in the app settings
-4. Deploy the app using the provided Dockerfile
-5. The app will start monitoring immediately and check for updates every 10 minutes
-
-## Local Testing
-
-To test locally:
+## Local Run
 
 ```bash
 export GMAIL_EMAIL="yourgmail@gmail.com"
-export GMAIL_APP_PASSWORD="yourapppassword"
-export VERIZON_PHONE="1234567890"
-python app.py
+export GMAIL_APP_PASSWORD="your_16_char_app_password"
+export ALERT_EMAIL_TO="you@example.com"
+python3 app.py
 ```
 
-## How It Works
+## Behavior
 
-1. The app fetches live scoring data from the USGA's official API
-2. Parses the JSON response to find Ronald Kelton's current standings
-3. Extracts the score (to par) and holes completed
-4. Compares to the previously stored score
-5. If changed, sends an email to `phonenumber@vtext.com` (Verizon's SMS gateway)
-6. Updates the stored score for future comparisons
-
-## File Structure
-
-- `app.py`: Main application logic
-- `requirements.txt`: Python dependencies
-- `Dockerfile`: Container configuration
-- `last_score.json`: Stores the last known score (created automatically)
-
-## Notes
-
-- SMS delivery depends on Verizon's email-to-SMS gateway
-- The app runs continuously and checks for updates every 10 minutes
+1. First run creates baseline `last_score.json` and does not send an alert.
+2. Every minute, current scores are compared to baseline.
+3. If any team/score changes, an email is sent and baseline is updated.
