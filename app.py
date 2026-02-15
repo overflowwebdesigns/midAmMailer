@@ -1,4 +1,3 @@
-import json
 import logging
 import os
 import smtplib
@@ -15,7 +14,6 @@ API_URL = (
     "&isNextGenEventHub=false&site_id=20"
 )
 TEAM_FILTER = "maine stars"
-LAST_SCORE_FILE = "last_score.json"
 
 EMAIL = os.getenv("GMAIL_EMAIL")
 PASSWORD = os.getenv("GMAIL_APP_PASSWORD")
@@ -119,39 +117,17 @@ def send_email_alert(subject, body):
             server.sendmail(EMAIL, recipient, msg.as_string())
 
 
-def load_last_scores():
-    try:
-        with open(LAST_SCORE_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            if isinstance(data, list):
-                return data
-            return []
-    except FileNotFoundError:
-        return []
-
-
-def save_scores(scores):
-    with open(LAST_SCORE_FILE, "w", encoding="utf-8") as f:
-        json.dump(scores, f, indent=2)
-
-
-def check_for_changes_and_notify():
-    logger.info("Running score check...")
+def send_score_update():
+    logger.info("Running scheduled score update...")
     current_scores = get_maine_stars_scores()
-    previous_scores = load_last_scores()
 
-    if not previous_scores:
-        logger.info("No baseline file found. Saving current scores without sending an alert.")
-        save_scores(current_scores)
-        return
-
-    if current_scores != previous_scores:
-        body = "Maine Stars scores changed:\n\n" + format_team_scores(current_scores)
-        send_email_alert("Maine Stars Score Update", body)
-        save_scores(current_scores)
-        logger.info("Change detected. Email alert sent and new scores saved.")
+    if current_scores:
+        body = "Maine Stars score update:\n\n" + format_team_scores(current_scores)
     else:
-        logger.info("No changes detected.")
+        body = "Maine Stars score update:\n\nNo matching Maine Stars scores were found in the latest fetch."
+
+    send_email_alert("Maine Stars Score Update", body)
+    logger.info("Scheduled score update email sent.")
 
 
 if __name__ == "__main__":
@@ -162,10 +138,10 @@ if __name__ == "__main__":
             raise ValueError("Please set ALERT_EMAIL_TO.")
 
         scheduler = BlockingScheduler()
-        scheduler.add_job(check_for_changes_and_notify, "interval", minutes=1)
+        scheduler.add_job(send_score_update, "interval", minutes=10)
 
-        logger.info("Starting Maine Stars monitor (checks every 1 minute)...")
-        check_for_changes_and_notify()
+        logger.info("Starting Maine Stars monitor (sends updates every 10 minutes)...")
+        send_score_update()
         scheduler.start()
     except Exception as exc:
         logger.error(f"Application failed: {exc}")

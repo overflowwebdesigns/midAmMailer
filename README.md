@@ -1,15 +1,14 @@
 # Maine Stars Score Monitor
 
-A Python app that polls Varsity Event Hub results, tracks Maine Stars team performance scores, and emails updates when scores change.
+A Python app that polls Varsity Event Hub results, tracks Maine Stars team performance scores, and emails updates every 10 minutes.
 
 ## Features
 
 - Queries Varsity Event Hub results API
 - Extracts full team name (`program-team` text + `subText`) and `performance-score`
 - Filters only Maine Stars teams
-- Checks every 1 minute
-- Sends email only when values change
-- Persists last snapshot in `last_score.json`
+- Checks every 10 minutes
+- Sends an email update every run
 
 ## Environment Variables
 
@@ -30,6 +29,6 @@ python3 app.py
 
 ## Behavior
 
-1. First run creates baseline `last_score.json` and does not send an alert.
-2. Every minute, current scores are compared to baseline.
-3. If any team/score changes, an email is sent and baseline is updated.
+1. On startup, the app fetches current Maine Stars scores and sends an email update immediately.
+2. Every 10 minutes, it fetches the latest scores and sends another email update.
+3. If no matching Maine Stars scores are found, the email includes that status.
