@@ -85,16 +85,7 @@ def get_maine_stars_scores():
         and TEAM_FILTER in team["team_name"].lower()
     ]
 
-    # Remove duplicates while preserving order.
-    seen = set()
-    unique = []
-    for team in filtered:
-        team_tuple = (team.get("team_name"), team.get("performance_score"))
-        if team_tuple not in seen:
-            seen.add(team_tuple)
-            unique.append(team)
-
-    return sorted(unique, key=lambda t: (t.get("team_name") or "", t.get("performance_score") or ""))
+    return sorted(filtered, key=lambda t: (t.get("team_name") or "", t.get("performance_score") or ""))
 
 
 def format_team_scores(teams):
